@@ -1,30 +1,42 @@
 box.cfg {
---    background = true,
---    log = 'test.log'
 }
 
+local case = {
+    tests = {
+        test_create
+    }
+}
+
+local cl  = require('http.client')
 local log = require('log')
-local app = require('app')
-local t   = require('luatest')
-local g   = t.group('kv')
+local tap = require('tap')
+local test = tap.test('test app tests')
+test:plan(2)
 
-local _base_url = function()
-    g.server.
-end
+local srv;
 
-g.before_each(function()
-    g.server = app
+function case.before()
     log.info('Test suite start')
-    g.server:start()
-end)
-
-g.after_each(function()
-    log.info('Test suite stop')
-    g.server:stop()
-end)
-
-g.test_post = function()
-    local r = http_client.post(app.base_uri .. '/kv', '{ "key" : "k1", "value" : { "Foo": "Bar", "Baz" : { "Test": 111 } } }')
-    t.assert_equals(r.status, 200)
-    t.assert_equals(r.body, "OK")
+    srv = require('app')
+    srv:start()
+    log.info('Test suite start 2')
 end
+
+function case.after()
+    log.info('Test suite stop')
+    srv:stop()
+end
+
+function test_create()
+    local r = cl.post('http://localhost:8080/kv', '{ "key" : "k1", "value" : { "Foo": "Bar", "Baz" : { "Test": 111 } } }')
+    test.is(r.status, 200)
+    test.is(r.body, "OK")
+end
+
+
+
+case.before()
+for test_index = 1, #case.tests do
+    case.tests[test_index]()
+end
+case.after()
