@@ -1,0 +1,18 @@
+FROM tarantool/tarantool:2.3
+
+RUN apk update
+RUN apk add luarocks unzip git cmake gcc binutils libc-dev make
+RUN tarantoolctl rocks install http
+RUN tarantoolctl rocks install luatest
+
+RUN mkdir /opt/tarantool/lib
+RUN mkdir /opt/tarantool/test
+COPY ./lib/*.lua /opt/tarantool/lib/
+COPY ./test/*.lua /opt/tarantool/test/
+WORKDIR /opt/tarantool
+
+ENV LUA_PATH $LUA_PATH;./lib/?.lua
+
+EXPOSE 8080
+
+CMD ["tarantool", "test/testapp_test.lua"]
