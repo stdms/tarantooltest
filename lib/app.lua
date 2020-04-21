@@ -6,7 +6,8 @@ local router = require('http.router')
 
 local kv = require('kv')
 
-local rps_limit = 3
+local rps_limit = 10
+local prps = 0   -- previous second rps
 local rps = 0    -- requests per second counter
 local lrtime = 0 -- last request time in seconds from epoch
 
@@ -29,11 +30,17 @@ end
 local function get_kv_handler(req)
     local key = req:stash('key')
     if key == nil then
+        log.error('Missing key')
         return not_found()
     end
 
     local tuple = kv:get(key)
     if tuple == nil then
+        log.error('Invalid request data (double check)')
+        return incorrect_req()
+    end
+
+    if type(tuple) == 'boolean' and tuple == false then
         log.error('Get: ' .. key .. ' not found')
         return not_found()
     end
@@ -51,6 +58,11 @@ local function create_kv_handler(req)
 
     local tuple = kv:add(body.key, body.value)
     if tuple == nil then
+        log.error('Invalid request data (double check)')
+        return incorrect_req()
+    end
+
+    if type(tuple) == 'boolean' and tuple == false then
         return { status = 409, body = json.encode({ error = 'Already exists' }) }
     end
 
@@ -72,6 +84,11 @@ local function update_kv_handler(req)
 
     local tuple = kv:upd(key, body.value)
     if tuple == nil then
+        log.error('Invalid request data (double check)')
+        return incorrect_req()
+    end
+
+    if type(tuple) == 'boolean' and tuple == false then
         log.error('Update: ' .. key .. ' not found')
         return not_found()
     end
@@ -88,11 +105,16 @@ local function delete_kv_handler(req)
 
     local ok = kv:del(key)
     if ok == nil then
+        log.error('Invalid request data (double check)')
+        return incorrect_req()
+    end
+
+    if type(ok) == 'boolean' and ok == false then
         log.error('Delete: ' .. key .. ' not found')
         return not_found()
     end
 
-    return { status = 200 }
+    return { status = 200, body = '{}' }
 end
 
 local function rps_limit_control(req)
@@ -100,16 +122,25 @@ local function rps_limit_control(req)
 
     if now == lrtime then
         rps = rps + 1
-        if rps == rps_limit then
-            log.error('RPS limit reached')
-            return { status = 429 }
-        end
     else
+        if now - lrtime == 1 then
+            prps = rps
+        else
+            prps = 0
+        end
         rps    = 0
         lrtime = now
     end
 
-    log.info('rps: ' .. rps .. ' ' .. lrtime )
+    local avg = (rps + prps) / 2
+    if avg >= rps_limit then
+        log.error('RPS limit reached ' .. avg )
+        return { status = 429 }
+    end
+
+    log.info('rps: ' .. avg .. ' ' .. lrtime )
+
+    return req:next()
 end
 
 -- POST /kv body: {key: "test", "value": {SOME ARBITRARY JSON}}

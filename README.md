@@ -16,7 +16,8 @@ localhost:8080. Following URLs supported:
 
 Test suite has own dedicated Dockerfile. Use nex commands to build and run container with tests
 
-`docker build -t testapp-test -f Dockerfile-test .`
+`./run_tests.sh`
 
-`docker run testapp-test`
+This script will build and run docker container with tarantool test app, then put tests
+from test subdir on running instance.
 

@@ -31,7 +31,7 @@ local kv = {
             log.error('kv.add: Null key')
             return nil
         end
-        if type(value) ~= nil then
+        if type(value) ~= 'table' then
             log.error('kv.add: wrong value type ')
             return nil
         end
@@ -39,7 +39,7 @@ local kv = {
         local tuple = self.space:get(key)
         if tuple ~= nil then
             log.error('kv.add: ' .. key .. ' already exists')
-            return nil
+            return false
         end
 
         return self:unflatten(self.space:insert({ key, value }))
@@ -59,7 +59,7 @@ local kv = {
         local tuple = self.space:get(key)
         if tuple == nil then
             log.error('kv.add: ' .. key .. ' not found')
-            return nil
+            return false
         end
 
         return self:unflatten(self.space:update({key}, {{ '=', 2, value }}))
@@ -74,7 +74,7 @@ local kv = {
         local tuple = self.space:get(key)
         if tuple == nil then
             log.error('kv.delete: ' .. key .. ' not found')
-            return nil
+            return false
         end
 
         self.space:delete(key)
@@ -90,7 +90,7 @@ local kv = {
         local tuple = self.space:get(key)
         if tuple == nil then
             log.error('kv.get: ' .. key .. ' not found')
-            return nil
+            return false
         end
 
         return self:unflatten(tuple)
